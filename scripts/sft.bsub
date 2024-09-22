@@ -1,0 +1,35 @@
+## Scheduler parameters ##
+
+#BSUB -J sft_multi_alpaca                     # job name
+#BSUB -o %J.stdout                  # optional: have output written to specific file
+#BSUB -e %J.stderr                  # optional: have errors written to specific file
+# #BSUB -q batch_a100               # optional: use highend nodes w/ Volta GPUs (default: Geforce GPUs)
+#BSUB -W 120:00                      # fill in desired wallclock time [hours,]minutes (hours are optional)
+#BSUB -n 1                          # min CPU cores,max CPU cores (max cores is optional)
+#BSUB -R "span[hosts=1]"          # optional: run on single host (if using more than 1 CPU core)
+#BSUB -M 20480                       # fill in required amount of memory per CPU core(in Mbyte)
+#BSUB -P sft_multi_alpaca                   # optional: fill in cluster project
+#BSUB -gpu "num=4:mode=exclusive_process:mps=no:aff=no"
+
+# Here comes your code
+# 1. load some module
+module purge
+module load conda proxy4server-access cuda/11.8.0 cudnn/11.8_v8.9
+# proxy_on
+source /fs/applications/p4s-access/2.0/ActivateP4S.sh -a
+
+# 2. define some variables
+## environment
+vEnv=lavine_clf
+## scripts
+proj_path=/fs/scratch/rng_cr_bcai_dl/law1rng/lavine_bosch/lavine_code/RLCLF/SFT
+sft_output_dir=$proj_path/sft_multi_alpaca
+
+# 3. load enviroment
+conda activate $vEnv
+mkdir $sft_output_dir
+
+# 4. run your code here
+nohup accelerate launch --config_file $proj_path/acc_config.yaml $proj_path/sft_multi_alpaca.py \
+--training_args.output_dir=$sft_output_dir \
+> $sft_output_dir/log.txt &

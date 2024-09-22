@@ -1,0 +1,47 @@
+## Scheduler parameters ##
+
+#BSUB -J mt_to_eng                     # job name
+#BSUB -o %J.stdout                  # optional: have output written to specific file
+#BSUB -e %J.stderr                  # optional: have errors written to specific file
+#BSUB -q batch_a100               # optional: use highend nodes w/ Volta GPUs (default: Geforce GPUs)
+#BSUB -W 72:00                      # fill in desired wallclock time [hours,]minutes (hours are optional)
+#BSUB -n 1                          # min CPU cores,max CPU cores (max cores is optional)
+#BSUB -R "span[hosts=1]"          # optional: run on single host (if using more than 1 CPU core)
+#BSUB -M 40960                       # fill in required amount of memory per CPU core(in Mbyte)
+#BSUB -P mt_to_eng                   # optional: fill in cluster project
+#BSUB -gpu "num=1:mode=exclusive_process:mps=no:aff=no"
+
+# Here comes your code
+# 1. load some module
+module purge
+module load conda proxy4server-access cuda/11.8.0 cudnn/11.8_v8.9
+# proxy_on
+source /fs/applications/p4s-access/2.0/ActivateP4S.sh -a
+
+# 2. define some variables
+## environment
+vEnv=lavine_clf
+## scripts
+model_name=meta-llama/Llama-2-7b-chat-hf
+peft_model_path=/fs/scratch/rng_cr_bcai_dl/law1rng/lavine_bosch/lavine_code/Lavine_Bosch/SFT/sft_multi_alpaca_llama/checkpoint-68400
+model_cache=/fs/scratch/rng_cr_bcai_dl/law1rng/.cache
+proj_path=/fs/scratch/rng_cr_bcai_dl/law1rng/lavine_bosch/lavine_code/Lavine_Bosch/Inference/SFT/MT
+input_path=/fs/scratch/rng_cr_bcai_dl/law1rng/lavine_bosch/public_data/flores200_dataset/devtest
+output_dir=$proj_path/out_new
+
+# 3. load enviroment
+conda activate $vEnv
+
+mkdir $output_dir
+
+# 4. run your code here
+nohup python $proj_path/inference_mt.py \
+--template alpaca \
+--model_name_or_path $model_name \
+--peft_model_name_or_path $peft_model_path \
+--cache_dir $model_cache \
+--from_english False \
+--batch_size 8 \
+--data_path $input_path \
+--output_path $output_dir \
+> $output_dir/log_to_eng.txt &
